@@ -3,6 +3,7 @@ var router = express.Router();
 const MongoClient = require('mongodb').MongoClient;
 const mongoose = require('mongoose');
 const dns = require('dns');
+const dnsPromises = require('dns').promises;
 require('dotenv').config();
 
 const urlSchema = new mongoose.Schema({
@@ -32,7 +33,6 @@ const createNewUrlInstance = function(inputUrl) {
   });
 }
 
-/* GET all urls. */
 router.get('/', function(req, res, next) {
   res.send('respond with a resource');
 
@@ -75,56 +75,65 @@ router.get('/:id?', function(req, res, next) {
 router.post('/:url?', function(req, res, next) {
   let urlToValidate = req.body.url;
   
-  try {
-    dns.resolve(urlToValidate, () => {})
-  } catch (err) {
-    throw err;
-  }
-
-  async function checkIfUrlExists () {
-    await mongoose.connect(process.env.mongo_uri, { useNewUrlParser: true, useUnifiedTopology: true });
-    let db = mongoose.connection;
-    ShortUrl.
-    find({url: urlToValidate}).
-    select('url id')
-    .then((urls) => {
-      let responseObject = {url: urls[0]['url'], id: urls[0]['id']};
-      console.log(responseObject);
-      res.send(responseObject);
-    }).then(() => {
-      db.close();
-    }).catch((err) => {
-      console.error('[ERROR] the url is not in the database.');
-      console.error(err);
+  async function checkIfUrlIsValid () {
+    let urlObject = new URL(req.body.url);
+    let urlHost = urlObject.host;
+    let urlIsValid = false;
+    
+    dnsPromises.setServers(['8.8.8.8','[2001:4860:4860::8888]']);
+    
+    console.log('Checking if URL is valid...')
+    return dnsPromises.resolve(urlHost)
+    .then(urlResults => {
+      urlIsValid = true;
+      console.log(`${urlHost} is valid and resolved to ${urlResults}`);
+      return urlResults;
     })
   }
 
-  async function asyncCheckIfUrlExists () {
-    let checker = await checkIfUrlExists;
-    if (checker === 'hello') return console.log('yes!!!!');
-  }
-
-  async function run () {
+  async function checkIfUrlExists () {
+    console.log('Checking if URL exists in DB...')
     await mongoose.connect(process.env.mongo_uri, { useNewUrlParser: true, useUnifiedTopology: true });
-    let db = mongoose.connection;
-    
-    await ShortUrl.
-    find({}).
-    select('url id').
-    exec((err, urls) => {
-      if (err) {
-        res.send({error: 'invalid url'});
-      } else {
-          let newMaxId = urls[urls.length - 1]['id'] + 1;
-          const newUrlRecord = new ShortUrl({url: urlToValidate, id: newMaxId});
-          console.log('2!')
-          res.send(newUrlRecord);
-      }
-    });
-
+    const asyncUrlFinder = await ShortUrl.find({url: urlToValidate});
+    mongoose.connection.close();
+    return asyncUrlFinder
   }
   
-  asyncCheckIfUrlExists()
+  async function createNewUrlRecord () {
+    console.log('Creating new record...')
+    await mongoose.connect(process.env.mongo_uri, { useNewUrlParser: true, useUnifiedTopology: true });
+    const allUrls = await ShortUrl.find({});
+    let newMaxId = allUrls[allUrls.length - 1]['id'] + 1;
+    const newUrlRecord = new ShortUrl({url: urlToValidate, id: newMaxId});
+    console.log({url: urlToValidate, id: newMaxId});
+    res.send({url: urlToValidate, id: newMaxId});
+    mongoose.connection.close();
+  }
+  
+  checkIfUrlIsValid()
+  .then(() => {
+    checkIfUrlExists().then((urlFound) => {
+      let urlRecordAlreadyExists = Object.keys(urlFound).length;  
+      if (urlRecordAlreadyExists) {
+        let existingUrlRecord = {"url": urlFound[0]['url'], "id": urlFound[0]['id']};
+        console.log(`This URL already exists in the DB: ${existingUrlRecord.url}`);
+        res.send(existingUrlRecord);
+      } else {
+        console.log('URL does not exist in the DB.')
+        createNewUrlRecord();
+      }
+    })
+    .catch(err => {
+      console.error(err);
+    })
+  })
+  .catch(err => {
+    console.log('URL is not valid!')
+    console.error(err);
+    res.send({"error":"Invalid Hostname"});
+    return
+  })
+
 });
 
 module.exports = router;
