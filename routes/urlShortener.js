@@ -1,8 +1,6 @@
 var express = require('express');
 var router = express.Router();
-const MongoClient = require('mongodb').MongoClient;
 const mongoose = require('mongoose');
-const dns = require('dns');
 const dnsPromises = require('dns').promises;
 require('dotenv').config();
 
@@ -13,33 +11,12 @@ const urlSchema = new mongoose.Schema({
 
 const ShortUrl = mongoose.model('Url', urlSchema);
 
-const createNewUrlInstance = function(inputUrl) {
-  mongoose.connect(process.env.mongo_uri, { useNewUrlParser: true, useUnifiedTopology: true });
-  let db = mongoose.connection;
-
-  db.on('error', err => console.log(err));
-  db.once('open', function() {
-    let urlExists = ShortUrl.find({original_url: inputUrl});
-    if (urlExists) {
-      return 
-    } else {
-      let newMaxId = ShortUrl.find().sort({id: -1});
-      const newUrl = new ShortUrl({original_url: inputUrl, short_url: newMaxId});
-      newUrl.save((error, newUrl) => {
-        if (error) return console.log('there was an error.');
-        console.log('new document has been saved.')      
-      })
-    }
-  });
-}
-
 router.get('/', function(req, res, next) {
   res.send('enter an id to begin.');
 });
 
 router.get('/:id?', function(req, res, next) {
   let urlIdToSearch = req.params.id;
-  console.log(urlIdToSearch);
 
   async function checkIfIdExists() {
     await mongoose.connect(process.env.mongo_uri, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -106,7 +83,8 @@ router.post('/:url?', function(req, res, next) {
   
   checkIfUrlIsValid()
   .then(() => {
-    checkIfUrlExists().then((urlFound) => {
+    checkIfUrlExists()
+    .then((urlFound) => {
       let urlRecordAlreadyExists = Object.keys(urlFound).length;  
       if (urlRecordAlreadyExists) {
         let existingUrlRecord = {"original_url": urlFound[0]['original_url'], "short_url": urlFound[0]['short_url']};
