@@ -35,18 +35,23 @@ router.get('/:id?', function(req, res, next) {
   checkIfIdExists();
 });
 
-router.post('/:url?', function(req, res, next) {
+router.post('/new/:url?', function(req, res, next) {
   let urlToValidate = req.body.url;
   
   async function checkIfUrlIsValid () {
     let urlObject = new URL(req.body.url);
-    let urlHost = urlObject.host;    
+    let urlHost = urlObject.host;
+    let urlProtocol = urlObject.protocol;
+
     dnsPromises.setServers(['8.8.8.8','[2001:4860:4860::8888]']);
      
     console.log('Checking if URL is valid...')
     return dnsPromises.resolve(urlHost)
     .then(urlResults => {
       console.log(`${urlHost} is valid and resolved to ${urlResults}`);
+      if (urlProtocol != 'http:' || 'https:') {
+        throw 'Invalid protocol!';
+      }
       return urlResults;
     })
   }
@@ -102,7 +107,7 @@ router.post('/:url?', function(req, res, next) {
   .catch(err => {
     console.log('URL is not valid!')
     console.error(err);
-    res.send({"error":"Invalid Hostname"});
+    res.send({"error":"invalid url"});
     return
   })
 
