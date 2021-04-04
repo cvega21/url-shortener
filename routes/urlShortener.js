@@ -49,7 +49,7 @@ router.post('/new/:url?', function(req, res, next) {
     return dnsPromises.resolve(urlHost)
     .then(urlResults => {
       console.log(`${urlHost} is valid and resolved to ${urlResults}`);
-      if (urlProtocol != 'http:' || 'https:') {
+      if (urlProtocol != 'http:' && urlProtocol != 'https:') {
         throw 'Invalid protocol!';
       }
       return urlResults;
