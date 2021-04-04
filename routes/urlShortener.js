@@ -19,7 +19,7 @@ router.get('/:id?', function(req, res, next) {
   let urlIdToSearch = req.params.id;
 
   async function checkIfIdExists() {
-    await mongoose.connect(process.env.mongo_uri, { useNewUrlParser: true, useUnifiedTopology: true });
+    await mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
     ShortUrl.find({short_url: urlIdToSearch})
     .then((urlObject) => {
       let urlToRedirectTo = urlObject[0]['original_url'];
@@ -53,7 +53,7 @@ router.post('/:url?', function(req, res, next) {
 
   async function checkIfUrlExists () {
     console.log('Checking if URL exists in DB...')
-    await mongoose.connect(process.env.mongo_uri, { useNewUrlParser: true, useUnifiedTopology: true });
+    await mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
     const asyncUrlFinder = await ShortUrl.find({original_url: urlToValidate});
     mongoose.connection.close();
     return asyncUrlFinder
@@ -61,7 +61,7 @@ router.post('/:url?', function(req, res, next) {
   
   async function createNewUrlRecord () {
     console.log('Creating new record...')
-    await mongoose.connect(process.env.mongo_uri, { useNewUrlParser: true, useUnifiedTopology: true });
+    await mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
     const allUrls = await ShortUrl.find({});
     let newMaxId = allUrls[allUrls.length - 1]['short_url'] + 1;
     const newUrlRecord = new ShortUrl({original_url: urlToValidate, short_url: newMaxId});
