@@ -23,3 +23,4 @@ The app is built on a **Node.JS**/**Express** back-end, and a **MongoDB** Atlas 
 - Parsing request body using express middleware
 - Bypassing default ISP DNS servers with Google's DNS servers
 - Parsing URL objects in javascript
+- Working with Heroku environment variables
